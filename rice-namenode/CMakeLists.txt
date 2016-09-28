@@ -1,6 +1,6 @@
 include_directories(${ProtobufIncludePath})
 
-add_executable(namenode main.cc)
+add_executable(namenode main.cc ClientNamenodeProtocolImpl.cc)
 target_link_libraries( namenode pthread )
 target_link_libraries( namenode messages )
 target_link_libraries( namenode ${Boost_LIBRARIES} )

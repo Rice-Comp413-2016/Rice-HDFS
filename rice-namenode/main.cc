@@ -5,6 +5,8 @@
 #include <asio.hpp>
 #include <RpcHeader.pb.h>
 
+#include "ClientNamenodeProtocolImpl.cc"
+
 using asio::ip::tcp;
 
 static bool receive_handshake(tcp::socket& sock, short* version, short* service, short* auth_protocol) {
@@ -44,7 +46,8 @@ static bool readint32(tcp::socket& sock, uint32_t* out) {
 static void handle_rpc(tcp::socket sock) {
     // Remark: No need to close socket, it happens automatically in its
     // destructor.
-    short version, service, auth_protocol;
+    client_namenode_translator::ClientNamenodeTranslator translator;
+	short version, service, auth_protocol;
     if (receive_handshake(sock, &version, &service, &auth_protocol)) {
         std::printf("Got handshake: version=%d, service=%d, protocol=%d\n", version, service, auth_protocol);
     } else {
