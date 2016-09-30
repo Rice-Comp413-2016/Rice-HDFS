@@ -150,12 +150,12 @@ void RPCServer::handle_rpc(tcp::socket sock) {
 void RPCServer::register_handlers() {
 	using namespace client_namenode_translator;
 
-	register_handler("getFileInfo",	 		ClientNamenodeTranslator::getFileInfo);
-	register_handler("mkdir", 				ClientNamenodeTranslator::mkdir);
-	register_handler("append", 				ClientNamenodeTranslator::append);
-	register_handler("deleteCmd", 			ClientNamenodeTranslator::deleteCmd);
-	register_handler("create", 				ClientNamenodeTranslator::create);
-	register_handler("getBlockLocations", 	ClientNamenodeTranslator::getBlockLocations);
+	register_handler("getFileInfo", ClientNamenodeTranslator::getFileInfo);
+	register_handler("mkdir", ClientNamenodeTranslator::mkdir);
+	register_handler("append", ClientNamenodeTranslator::append);
+	register_handler("deleteCmd", ClientNamenodeTranslator::deleteCmd);
+	register_handler("create", ClientNamenodeTranslator::create);
+	register_handler("getBlockLocations", ClientNamenodeTranslator::getBlockLocations);
 }
 
 /**
