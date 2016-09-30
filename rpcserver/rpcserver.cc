@@ -6,6 +6,7 @@
 #include <ProtobufRpcEngine.pb.h>
 #include <IpcConnectionContext.pb.h>
 
+#include "socket_writes.cc"
 #include "socket_reads.cc"
 #include "rpcserver.h"
 #include <ClientNamenodeProtocolImpl.h>
@@ -94,7 +95,7 @@ void RPCServer::handle_rpc(tcp::socket sock) {
         // Main listen loop for RPC commands.
         uint32_t payload_size;
         if (!read_int32(sock, &payload_size)) {
-            ERROR_AND_RETURN("Failed to payload size.");
+            ERROR_AND_RETURN("Failed to read payload size, maybe connection closed.");
         }
         std::cout << "Got payload size: " << payload_size << std::endl;
         hadoop::common::RpcRequestHeaderProto rpc_request_header;
@@ -119,13 +120,24 @@ void RPCServer::handle_rpc(tcp::socket sock) {
         if (rcv_len != request_len || error) {
             ERROR_AND_RETURN("Failed to receive request.");
         }
-        std::cout << request << std::endl;
-
-        // TODO: dispatch on request_header.methodName.
         auto iter = this->dispatch_table.find(request_header.methodname());
         if (iter != this->dispatch_table.end()) {
             std::cout << "dispatching handler for " << request_header.methodname() << std::endl;
-            iter->second(request);
+            // Send the response back on the socket.
+            hadoop::common::RpcResponseHeaderProto response_header;
+            response_header.set_callid(rpc_request_header.callid());
+            response_header.set_status(hadoop::common::RpcResponseHeaderProto_RpcStatusProto_SUCCESS);
+            response_header.set_clientid(rpc_request_header.clientid());
+            std::string response_header_str;
+            response_header.SerializeToString(&response_header_str);
+            std::string response = iter->second(request);
+            if (write_int32(sock, response.size() + response_header_str.size()) &&
+                write_delimited_proto(sock, response_header_str) &&
+                write_delimited_proto(sock, response)) {
+                std::cout << "successfully wrote response " << response << "  to client." << std::endl;
+            } else {
+                std::cout << "failed to write response to client." << std::endl;
+            }
         } else {
             std::cout << "no handler found for " << request_header.methodname() << std::endl;
         }
@@ -146,10 +158,19 @@ void RPCServer::register_handlers() {
 	register_handler("getBlockLocations", 	ClientNamenodeTranslator::getBlockLocations);
 }
 
+/**
+ * Register given handler function on the provided method key.
+ * The function's input will be a string of bytes corresponding to the Proto of
+ * its input. Exepct the function to return a string of serialized bytes of its
+ * specified output Proto.
+ */
 void RPCServer::register_handler(std::string key, std::function<std::string(std::string)> handler) {
     this->dispatch_table[key] = handler;
 }
 
+/**
+ * Begin the server's main listen loop using provided io service.
+ */
 void RPCServer::serve(asio::io_service& io_service) {
     std::cout << "Listen on :" << this->port << std::endl;
     tcp::acceptor a(io_service, tcp::endpoint(tcp::v4(), this->port));

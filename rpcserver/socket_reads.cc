@@ -122,6 +122,7 @@ namespace rpcserver {
         if (consumed != NULL) {
             *consumed = skip + len;
         }
+        delete[] buf;
         return !error && proto.ParseFromString(proto_str);
     }
 
