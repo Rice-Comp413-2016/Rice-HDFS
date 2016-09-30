@@ -20,7 +20,6 @@ namespace client_namenode_translator {
 // the .proto file implementation's namespace, used for messages
 using namespace hadoop::hdfs;
 
-
 // TODO - this will probably take some zookeeper object
 ClientNamenodeTranslator::ClientNamenodeTranslator() {
 	std::cout << "Created client namenode translator." << std::endl;
@@ -113,6 +112,10 @@ std::string ClientNamenodeTranslator::getBlockLocations(std::string input) {
 	return Serialize(&out, res);
 }
 
+/**
+ * Serialize the message 'res' into out. If the serialization fails, then we must find out to handle it
+ * If it succeeds, we simly return the serialized string. 
+ */
 std::string ClientNamenodeTranslator::Serialize(std::string* out, google::protobuf::Message& res) {
 	if (!res.SerializeToString(out)) {
 		// TODO handle error
