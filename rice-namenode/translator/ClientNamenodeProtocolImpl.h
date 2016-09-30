@@ -2,6 +2,8 @@
 #include "ClientNamenodeProtocol.pb.h"
 #include <google/protobuf/message.h>
 
+#pragma once
+
 /**
  * The implementation of the rpc calls. 
  */

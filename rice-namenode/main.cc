@@ -2,7 +2,6 @@
 #include <iostream>
 #include <asio.hpp>
 #include <rpcserver.h>
-#include "ClientNamenodeProtocolImpl.h"
 
 int main(int argc, char* argv[]) {
     asio::io_service io_service;
@@ -11,6 +10,6 @@ int main(int argc, char* argv[]) {
         port = std::atoi(argv[1]);
     }
     RPCServer server(port);
-    server.register_handler("getFileInfo", client_namenode_translator::ClientNamenodeTranslator::getFileInfo);
+    server.register_handlers();
     server.serve(io_service);
 }
