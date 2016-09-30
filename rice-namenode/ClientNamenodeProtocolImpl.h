@@ -18,6 +18,7 @@ class ClientNamenodeTranslator {
 		static std::string append(std::string);
 		static std::string deleteCmd(std::string);
 		static std::string create(std::string);
+		static std::string getBlockLocations(std::string);
 	private:
 		static std::string Serialize(std::string*, google::protobuf::Message&);
 }; // class

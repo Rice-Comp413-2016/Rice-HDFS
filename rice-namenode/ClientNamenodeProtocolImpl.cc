@@ -97,6 +97,22 @@ std::string ClientNamenodeTranslator::create(std::string input) {
 	return Serialize(&out, res);
 }
 
+
+std::string ClientNamenodeTranslator::getBlockLocations(std::string input) {
+	std::cout << "Got create request with input " << input << std::endl;
+	GetBlockLocationsRequestProto req;
+	req.ParseFromString(input);
+	const std::string& src = req.src();
+	google::protobuf::uint64 offset = req.offset();
+	google::protobuf::uint64 length = req.offset();
+	std::string out;
+	GetBlockLocationsResponseProto res;
+	// TODO for now, just say the getBlockLocations command failed. Not entirely sure
+	// how to do that, but I think you just don't include a
+	// LocatedBlocksProto
+	return Serialize(&out, res);
+}
+
 std::string ClientNamenodeTranslator::Serialize(std::string* out, google::protobuf::Message& res) {
 	if (!res.SerializeToString(out)) {
 		// TODO handle error
