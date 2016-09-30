@@ -30,13 +30,13 @@ std::string ClientNamenodeTranslator::getFileInfo(std::string input) {
 	std::cout << "Got getFileInfo request with input " << input << std::endl;
 	GetFileInfoRequestProto req;
 	req.ParseFromString(input);
-    const std::string& src = req.src();
+	const std::string& src = req.src();
 	// from here, we would ask zoo-keeper something, we should check
 	// the response, and either return the response or return some 
 	// void response...for now we will just return			
 	std::string out; 
 	GetFileInfoResponseProto res;
-    return Serialize(&out, res);
+	return Serialize(&out, res);
 }
 
 std::string ClientNamenodeTranslator::mkdir(std::string input) {
@@ -50,6 +50,50 @@ std::string ClientNamenodeTranslator::mkdir(std::string input) {
 	MkdirsResponseProto res;
 	// TODO for now, just say the mkdir command failed
 	res.set_result(false);
+	return Serialize(&out, res);
+}
+
+std::string ClientNamenodeTranslator::append(std::string input) {
+	std::cout << "Got append request with input " << input << std::endl;
+	AppendRequestProto req;
+	req.ParseFromString(input);
+	const std::string& src = req.src();
+	const std::string& clientName = req.clientname();
+	std::string out;
+	AppendResponseProto res;
+	// TODO We don't support this operation, so we need to return some
+	// kind of failure status. I've looked around and I'm not sure 
+	// how to do this since this message only contains an optional
+	// LocatedBlockProto. No LocatedBlockProto might be failure
+	return Serialize(&out, res);
+}
+
+// TODO delete is a keyword in C++. Come up with a better replacement name than
+// deleteCmd
+std::string ClientNamenodeTranslator::deleteCmd(std::string input) {
+	std::cout << "Got delete request with input " << input << std::endl;
+	DeleteRequestProto req;
+	req.ParseFromString(input);
+	const std::string& src = req.src();
+	const bool recursive = req.recursive();
+	std::string out;
+	DeleteResponseProto res;
+	// TODO for now, just say the delete command failed
+	res.set_result(false);
+	return Serialize(&out, res);
+}
+
+std::string ClientNamenodeTranslator::create(std::string input) {
+	std::cout << "Got create request with input " << input << std::endl;
+	CreateRequestProto req;
+	req.ParseFromString(input);
+	const std::string& src = req.src();
+	const hadoop::hdfs::FsPermissionProto& masked = req.masked();
+	std::string out;
+	CreateResponseProto res;
+	// TODO for now, just say the create command failed. Not entirely sure
+	// how to do that, but I think you just don't include an
+	// HDFSFileStatusProto
 	return Serialize(&out, res);
 }
 

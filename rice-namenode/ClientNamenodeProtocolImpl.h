@@ -15,6 +15,9 @@ class ClientNamenodeTranslator {
 		ClientNamenodeTranslator(); 
 		static std::string getFileInfo(std::string);
 		static std::string mkdir(std::string);
+		static std::string append(std::string);
+		static std::string deleteCmd(std::string);
+		static std::string create(std::string);
 	private:
 		static std::string Serialize(std::string*, google::protobuf::Message&);
 }; // class
