@@ -122,7 +122,6 @@ void RPCServer::handle_rpc(tcp::socket sock) {
         auto iter = this->dispatch_table.find(request_header.methodname());
         if (iter != this->dispatch_table.end()) {
             std::cout << "dispatching handler for " << request_header.methodname() << std::endl;
-            std::string response = iter->second(request);
             // Send the response back on the socket.
             hadoop::common::RpcResponseHeaderProto response_header;
             response_header.set_callid(rpc_request_header.callid());
@@ -130,6 +129,7 @@ void RPCServer::handle_rpc(tcp::socket sock) {
             response_header.set_clientid(rpc_request_header.clientid());
             std::string response_header_str;
             response_header.SerializeToString(&response_header_str);
+            std::string response = iter->second(request);
             if (write_int32(sock, response.size() + response_header_str.size()) &&
                 write_delimited_proto(sock, response_header_str) &&
                 write_delimited_proto(sock, response)) {
@@ -143,10 +143,19 @@ void RPCServer::handle_rpc(tcp::socket sock) {
     }
 }
 
+/**
+ * Register given handler function on the provided method key.
+ * The function's input will be a string of bytes corresponding to the Proto of
+ * its input. Exepct the function to return a string of serialized bytes of its
+ * specified output Proto.
+ */
 void RPCServer::register_handler(std::string key, std::function<std::string(std::string)> handler) {
     this->dispatch_table[key] = handler;
 }
 
+/**
+ * Begin the server's main listen loop using provided io service.
+ */
 void RPCServer::serve(asio::io_service& io_service) {
     std::cout << "Listen on :" << this->port << std::endl;
     tcp::acceptor a(io_service, tcp::endpoint(tcp::v4(), this->port));

@@ -10,6 +10,7 @@ std::string getFileInfoDemo(std::string request) {
     std::string out_str;
     // Stub just says there's no info.
     response_pb.SerializeToString(&out_str);
+    std::cout << "GetFileInfo has " << out_str.size() << " bytes" << std::endl;
     return out_str;
 }
 
