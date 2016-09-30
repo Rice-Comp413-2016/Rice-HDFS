@@ -137,6 +137,9 @@ void ClientNamenodeTranslator::InitServer() {
 void ClientNamenodeTranslator::RegisterClientRPCHandlers() {
     using namespace std::placeholders; // for `_1`
 
+	// The reason for these binds is because it wants static functions, but we want to give it member functions
+    // http://stackoverflow.com/questions/14189440/c-class-member-callback-simple-examples
+
 	server.register_handler("getFileInfo", std::bind(&ClientNamenodeTranslator::getFileInfo, this, _1));
 	server.register_handler("mkdir", std::bind(&ClientNamenodeTranslator::mkdir, this, _1));
 	server.register_handler("append", std::bind(&ClientNamenodeTranslator::append, this, _1));
