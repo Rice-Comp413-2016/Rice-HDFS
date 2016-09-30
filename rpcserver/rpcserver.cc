@@ -9,7 +9,6 @@
 #include "socket_writes.cc"
 #include "socket_reads.cc"
 #include "rpcserver.h"
-#include <ClientNamenodeProtocolImpl.h>
 
 #define ERROR_AND_RETURN(msg) ::std::cerr << msg << ::std::endl; return
 #define ERROR_AND_FALSE(msg) ::std::cerr << msg << ::std::endl; return false
@@ -142,20 +141,6 @@ void RPCServer::handle_rpc(tcp::socket sock) {
             std::cout << "no handler found for " << request_header.methodname() << std::endl;
         }
     }
-}
-
-/**
- * Register all the rpc functions handlers (currently just client to namenode) 
- */
-void RPCServer::register_handlers() {
-	using namespace client_namenode_translator;
-
-	register_handler("getFileInfo", ClientNamenodeTranslator::getFileInfo);
-	register_handler("mkdir", ClientNamenodeTranslator::mkdir);
-	register_handler("append", ClientNamenodeTranslator::append);
-	register_handler("deleteCmd", ClientNamenodeTranslator::deleteCmd);
-	register_handler("create", ClientNamenodeTranslator::create);
-	register_handler("getBlockLocations", ClientNamenodeTranslator::getBlockLocations);
 }
 
 /**
