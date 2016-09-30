@@ -119,8 +119,6 @@ void RPCServer::handle_rpc(tcp::socket sock) {
         if (rcv_len != request_len || error) {
             ERROR_AND_RETURN("Failed to receive request.");
         }
-        std::cout << request << std::endl;
-
         auto iter = this->dispatch_table.find(request_header.methodname());
         if (iter != this->dispatch_table.end()) {
             std::cout << "dispatching handler for " << request_header.methodname() << std::endl;
