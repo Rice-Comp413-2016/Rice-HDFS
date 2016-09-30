@@ -1,7 +1,16 @@
 #include <iostream>
+#include <google/protobuf/arena.h>
+#include <google/protobuf/arenastring.h>
+#include <google/protobuf/generated_message_util.h>
+#include <google/protobuf/metadata.h>
+#include <google/protobuf/message.h>
+#include <google/protobuf/repeated_field.h>
+#include <google/protobuf/extension_set.h>
+#include <google/protobuf/generated_enum_reflection.h>
+#include <google/protobuf/unknown_field_set.h>
 
-#include "ClientNamenodeProtocol.pb.h"
 #include "ClientNamenodeProtocolImpl.h"
+
 
 /**
  * The implementation of the rpc calls. 
@@ -18,6 +27,7 @@ ClientNamenodeTranslator::ClientNamenodeTranslator() {
 }
 
 std::string ClientNamenodeTranslator::getFileInfo(std::string input) {
+	std::cout << "Got getFileInfo request with input " << input << std::endl;
 	GetFileInfoRequestProto req;
 	req.ParseFromString(input);
     const std::string& src = req.src();
@@ -26,10 +36,28 @@ std::string ClientNamenodeTranslator::getFileInfo(std::string input) {
 	// void response...for now we will just return			
 	std::string out; 
 	GetFileInfoResponseProto res;
-	if (!res.SerializeToString(&out)) {
+    return Serialize(&out, res);
+}
+
+std::string ClientNamenodeTranslator::mkdir(std::string input) {
+	std::cout << "Got mkdir request with input " << input << std::endl;
+	MkdirsRequestProto req;
+	req.ParseFromString(input);
+	const std::string& src = req.src();
+	const hadoop::hdfs::FsPermissionProto& permission_msg = req.masked();
+	bool create_parent = req.createparent();
+	std::string out;
+	MkdirsResponseProto res;
+	// TODO for now, just say the mkdir command failed
+	res.set_result(false);
+	return Serialize(&out, res);
+}
+
+std::string ClientNamenodeTranslator::Serialize(std::string* out, google::protobuf::Message& res) {
+	if (!res.SerializeToString(out)) {
 		// TODO handle error
 	}
-	return out;
-}
+	return *out;
+} 
 
 } //namespace

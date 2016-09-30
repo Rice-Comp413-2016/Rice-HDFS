@@ -1,5 +1,6 @@
 #include <iostream>
 #include "ClientNamenodeProtocol.pb.h"
+#include <google/protobuf/message.h>
 
 /**
  * The implementation of the rpc calls. 
@@ -13,5 +14,8 @@ class ClientNamenodeTranslator {
 	public:
 		ClientNamenodeTranslator(); 
 		static std::string getFileInfo(std::string);
+		static std::string mkdir(std::string);
+	private:
+		static std::string Serialize(std::string*, google::protobuf::Message&);
 }; // class
 } // namespace

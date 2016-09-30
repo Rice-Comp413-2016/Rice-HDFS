@@ -4,11 +4,6 @@
 #include <rpcserver.h>
 #include "ClientNamenodeProtocolImpl.h"
 
-std::string getFileInfoDemo(std::string request) {
-    std::cout << "Handling getFileInfo on " << request << "!" << std::endl;
-    return "Some placeholder values...";
-}
-
 int main(int argc, char* argv[]) {
     asio::io_service io_service;
     short port = 5351;
