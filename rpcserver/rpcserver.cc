@@ -6,6 +6,7 @@
 #include <ProtobufRpcEngine.pb.h>
 #include <IpcConnectionContext.pb.h>
 
+#include "socket_writes.cc"
 #include "socket_reads.cc"
 #include "rpcserver.h"
 
@@ -93,7 +94,7 @@ void RPCServer::handle_rpc(tcp::socket sock) {
         // Main listen loop for RPC commands.
         uint32_t payload_size;
         if (!read_int32(sock, &payload_size)) {
-            ERROR_AND_RETURN("Failed to payload size.");
+            ERROR_AND_RETURN("Failed to read payload size, maybe connection closed.");
         }
         std::cout << "Got payload size: " << payload_size << std::endl;
         hadoop::common::RpcRequestHeaderProto rpc_request_header;
@@ -120,11 +121,24 @@ void RPCServer::handle_rpc(tcp::socket sock) {
         }
         std::cout << request << std::endl;
 
-        // TODO: dispatch on request_header.methodName.
         auto iter = this->dispatch_table.find(request_header.methodname());
         if (iter != this->dispatch_table.end()) {
             std::cout << "dispatching handler for " << request_header.methodname() << std::endl;
-            iter->second(request);
+            std::string response = iter->second(request);
+            // Send the response back on the socket.
+            hadoop::common::RpcResponseHeaderProto response_header;
+            response_header.set_callid(rpc_request_header.callid());
+            response_header.set_status(hadoop::common::RpcResponseHeaderProto_RpcStatusProto_SUCCESS);
+            response_header.set_clientid(rpc_request_header.clientid());
+            std::string response_header_str;
+            response_header.SerializeToString(&response_header_str);
+            if (write_int32(sock, response.size() + response_header_str.size()) &&
+                write_delimited_proto(sock, response_header_str) &&
+                write_delimited_proto(sock, response)) {
+                std::cout << "successfully wrote response to client." << std::endl;
+            } else {
+                std::cout << "failed to write response to client." << std::endl;
+            }
         } else {
             std::cout << "no handler found for " << request_header.methodname() << std::endl;
         }

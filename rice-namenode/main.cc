@@ -3,9 +3,14 @@
 #include <asio.hpp>
 #include <rpcserver.h>
 
+#include <ClientNameNodeProtocol.pb.h>
+
 std::string getFileInfoDemo(std::string request) {
-    std::cout << "Handling getFileInfo on " << request << "!" << std::endl;
-    return "Some placeholder values...";
+    hadoop::hdfs::GetFileInfoResponseProto response_pb;
+    std::string out_str;
+    // Stub just says there's no info.
+    response_pb.SerializeToString(&out_str);
+    return out_str;
 }
 
 int main(int argc, char* argv[]) {
