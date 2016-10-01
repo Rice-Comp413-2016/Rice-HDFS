@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 #include <google/protobuf/arena.h>
 #include <google/protobuf/arenastring.h>
 #include <google/protobuf/generated_message_util.h>
@@ -10,9 +11,9 @@
 #include <google/protobuf/unknown_field_set.h>
 
 #include <rpcserver.h>
+#include <pugixml.hpp>
 
 #include "ClientNamenodeProtocolImpl.h"
-
 
 /**
  * The implementation of the rpc calls. 
@@ -22,10 +23,14 @@ namespace client_namenode_translator {
 // the .proto file implementation's namespace, used for messages
 using namespace hadoop::hdfs;
 
+// static string info
+const char* ClientNamenodeTranslator::HDFS_DEFAULTS_CONFIG = "hdfs-default.xml";
+
 // TODO - this will probably take some zookeeper object
 ClientNamenodeTranslator::ClientNamenodeTranslator(int port_arg)
 	: port(port_arg), server(port) {
 	InitServer();
+	Config();
 	std::cout << "Created client namenode translator." << std::endl;
 }
 
@@ -116,6 +121,15 @@ std::string ClientNamenodeTranslator::getBlockLocations(std::string input) {
 	return Serialize(&out, res);
 }
 
+std::string ClientNamenodeTranslator::getServerDefaults(std::string input) {
+	std::cout << "Got server defaults request " << input << std::endl;
+	GetServerDefaultsRequestProto req;
+	req.ParseFromString(input);
+    std::string out;
+	GetServerDefaultsResponseProto res;
+    return Serialize(&out, res);
+}
+
 /**
  * Serialize the message 'res' into out. If the serialization fails, then we must find out to handle it
  * If it succeeds, we simly return the serialized string. 
@@ -127,6 +141,42 @@ std::string ClientNamenodeTranslator::Serialize(std::string* out, google::protob
 	return *out;
 }
 
+/**
+ * Set the configuration info for the namenode
+ */
+void ClientNamenodeTranslator::Config() {
+	// Read the hdfs-defaults xml file 
+	{
+		using namespace pugi;
+		xml_document doc;
+		xml_parse_result result = doc.load_file(HDFS_DEFAULTS_CONFIG);
+		if (!result) {
+		    std::cout << "XML [" << HDFS_DEFAULTS_CONFIG << "] parsed with errors, attr value: [" << doc.child("node").attribute("attr").value() << "]\n";
+    		std::cout << "Error description: " << result.description() << "\n";
+		}
+			
+		xml_node properties = doc.child("configuration");
+		for (xml_node child : properties.children()) {
+			// the name and value nodes in the xml 
+			xml_node name = child.first_child();
+            xml_node value = name.next_sibling();	
+			const char* name_str = name.first_child().text().get();
+			// TODO best way to do this? there are a lot of cases 	
+			if (strcmp(name_str, "dfs.namenode.fs-limits.min-block-size") == 0) {
+				xml_node value = name.next_sibling();
+				int min_block_size = value.first_child().text().as_int();;
+				// TODO for example, here, we would add this field to our member FsServerDefault info
+			}
+		}
+        std::cout << "Configured namenode (but not really!)" << std::endl;
+	}
+
+	// TODO any other configs that we need to read? 	
+}
+
+/**
+ * Initialize the rpc server
+ */
 void ClientNamenodeTranslator::InitServer() {
 	RegisterClientRPCHandlers();
 }
@@ -148,8 +198,18 @@ void ClientNamenodeTranslator::RegisterClientRPCHandlers() {
 	server.register_handler("getBlockLocations", std::bind(&ClientNamenodeTranslator::getBlockLocations, this, _1));
 }
 
+/**
+ * Get the RPCServer this namenode uses to connect with clients
+ */ 
 RPCServer ClientNamenodeTranslator::getRPCServer() {
 	return server; 
 } 
+
+/**
+ * Get the port this namenode listens on
+ */
+int ClientNamenodeTranslator::getPort() {
+	return port;
+}
 
 } //namespace

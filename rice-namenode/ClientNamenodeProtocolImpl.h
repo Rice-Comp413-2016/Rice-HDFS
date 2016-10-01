@@ -1,5 +1,6 @@
 #include <iostream>
 #include "ClientNamenodeProtocol.pb.h"
+#include "hdfs.pb.h"
 #include <google/protobuf/message.h>
 #include <rpcserver.h>
 
@@ -22,14 +23,21 @@ class ClientNamenodeTranslator {
 		std::string deleteCmd(std::string);
 		std::string create(std::string);
 		std::string getBlockLocations(std::string);
+        std::string getServerDefaults(std::string);
 
+		int getPort();
 		RPCServer getRPCServer();
 	private:
 		std::string Serialize(std::string*, google::protobuf::Message&);
 		void InitServer();
 		void RegisterClientRPCHandlers();
+		void Config();
 
+		FsServerDefaultsProto server_defaults;
 		int port;
 		RPCServer server;
+
+		static const char* HDFS_DEFAULTS_CONFIG;
+		
 }; // class
 } // namespace
