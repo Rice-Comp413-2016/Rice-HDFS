@@ -13,5 +13,5 @@ int main(int argc, char* argv[]) {
         port = std::atoi(argv[1]);
     }
 	ClientNamenodeTranslator translator(port);
-    translator.getRPCServer().serve(io_service);
+	translator.getRPCServer().serve(io_service);
 }
