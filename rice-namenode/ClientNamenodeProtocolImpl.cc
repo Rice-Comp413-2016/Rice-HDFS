@@ -50,7 +50,7 @@ std::string ClientNamenodeTranslator::getFileInfo(std::string input) {
 std::string ClientNamenodeTranslator::mkdir(std::string input) {
 	MkdirsRequestProto req;
 	req.ParseFromString(input);
-    logMessage(req);
+	logMessage(req);
 	const std::string& src = req.src();
 	const hadoop::hdfs::FsPermissionProto& permission_msg = req.masked();
 	bool create_parent = req.createparent();
