@@ -17,13 +17,13 @@ using namespace client_namenode_translator;
 
 int main(int argc, char* argv[]) {
 	el::Configurations conf(LOG_CONFIG_FILE);
-    el::Loggers::reconfigureAllLoggers(conf);
+	el::Loggers::reconfigureAllLoggers(conf);
 
-    asio::io_service io_service;
-    short port = 5351;
-    if (argc == 2) {
-        port = std::atoi(argv[1]);
-    }
+	asio::io_service io_service;
+	short port = 5351;
+	if (argc == 2) {
+		port = std::atoi(argv[1]);
+	}
 	ClientNamenodeTranslator translator(port);
 	translator.getRPCServer().serve(io_service);
 }
