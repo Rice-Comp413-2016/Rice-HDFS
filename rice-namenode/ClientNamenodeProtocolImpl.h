@@ -20,7 +20,7 @@ class ClientNamenodeTranslator {
 		std::string getFileInfo(std::string);
 		std::string mkdir(std::string);
 		std::string append(std::string);
-		std::string deleteCmd(std::string);
+		std::string destroy(std::string);
 		std::string create(std::string);
 		std::string getBlockLocations(std::string);
         std::string getServerDefaults(std::string);
@@ -32,6 +32,7 @@ class ClientNamenodeTranslator {
 		void InitServer();
 		void RegisterClientRPCHandlers();
 		void Config();
+		void logMessage(google::protobuf::Message& req);
 
 		FsServerDefaultsProto server_defaults;
 		int port;

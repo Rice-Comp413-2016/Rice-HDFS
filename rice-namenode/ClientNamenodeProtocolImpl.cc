@@ -35,9 +35,9 @@ ClientNamenodeTranslator::ClientNamenodeTranslator(int port_arg)
 }
 
 std::string ClientNamenodeTranslator::getFileInfo(std::string input) {
-	std::cout << "Got getFileInfo request with input " << input << std::endl;
 	GetFileInfoRequestProto req;
 	req.ParseFromString(input);
+	logMessage(req);
 	const std::string& src = req.src();
 	// from here, we would ask zoo-keeper something, we should check
 	// the response, and either return the response or return some 
@@ -48,9 +48,9 @@ std::string ClientNamenodeTranslator::getFileInfo(std::string input) {
 }
 
 std::string ClientNamenodeTranslator::mkdir(std::string input) {
-	std::cout << "Got mkdir request with input " << input << std::endl;
 	MkdirsRequestProto req;
 	req.ParseFromString(input);
+    logMessage(req);
 	const std::string& src = req.src();
 	const hadoop::hdfs::FsPermissionProto& permission_msg = req.masked();
 	bool create_parent = req.createparent();
@@ -62,9 +62,9 @@ std::string ClientNamenodeTranslator::mkdir(std::string input) {
 }
 
 std::string ClientNamenodeTranslator::append(std::string input) {
-	std::cout << "Got append request with input " << input << std::endl;
 	AppendRequestProto req;
 	req.ParseFromString(input);
+    logMessage(req);
 	const std::string& src = req.src();
 	const std::string& clientName = req.clientname();
 	std::string out;
@@ -76,12 +76,10 @@ std::string ClientNamenodeTranslator::append(std::string input) {
 	return Serialize(&out, res);
 }
 
-// TODO delete is a keyword in C++. Come up with a better replacement name than
-// deleteCmd
-std::string ClientNamenodeTranslator::deleteCmd(std::string input) {
-	std::cout << "Got delete request with input " << input << std::endl;
+std::string ClientNamenodeTranslator::destroy(std::string input) {
 	DeleteRequestProto req;
 	req.ParseFromString(input);
+    logMessage(req);
 	const std::string& src = req.src();
 	const bool recursive = req.recursive();
 	std::string out;
@@ -92,9 +90,9 @@ std::string ClientNamenodeTranslator::deleteCmd(std::string input) {
 }
 
 std::string ClientNamenodeTranslator::create(std::string input) {
-	std::cout << "Got create request with input " << input << std::endl;
 	CreateRequestProto req;
 	req.ParseFromString(input);
+    logMessage(req);
 	const std::string& src = req.src();
 	const hadoop::hdfs::FsPermissionProto& masked = req.masked();
 	std::string out;
@@ -107,9 +105,9 @@ std::string ClientNamenodeTranslator::create(std::string input) {
 
 
 std::string ClientNamenodeTranslator::getBlockLocations(std::string input) {
-	std::cout << "Got create request with input " << input << std::endl;
 	GetBlockLocationsRequestProto req;
 	req.ParseFromString(input);
+    logMessage(req);
 	const std::string& src = req.src();
 	google::protobuf::uint64 offset = req.offset();
 	google::protobuf::uint64 length = req.offset();
@@ -122,10 +120,10 @@ std::string ClientNamenodeTranslator::getBlockLocations(std::string input) {
 }
 
 std::string ClientNamenodeTranslator::getServerDefaults(std::string input) {
-	std::cout << "Got server defaults request " << input << std::endl;
 	GetServerDefaultsRequestProto req;
 	req.ParseFromString(input);
-    std::string out;
+	logMessage(req);
+	std::string out;
 	GetServerDefaultsResponseProto res;
     return Serialize(&out, res);
 }
@@ -193,7 +191,7 @@ void ClientNamenodeTranslator::RegisterClientRPCHandlers() {
 	server.register_handler("getFileInfo", std::bind(&ClientNamenodeTranslator::getFileInfo, this, _1));
 	server.register_handler("mkdir", std::bind(&ClientNamenodeTranslator::mkdir, this, _1));
 	server.register_handler("append", std::bind(&ClientNamenodeTranslator::append, this, _1));
-	server.register_handler("deleteCmd", std::bind(&ClientNamenodeTranslator::deleteCmd, this, _1));
+	server.register_handler("destroy", std::bind(&ClientNamenodeTranslator::destroy, this, _1));
 	server.register_handler("create", std::bind(&ClientNamenodeTranslator::create, this, _1));
 	server.register_handler("getBlockLocations", std::bind(&ClientNamenodeTranslator::getBlockLocations, this, _1));
 }
@@ -210,6 +208,10 @@ RPCServer ClientNamenodeTranslator::getRPCServer() {
  */
 int ClientNamenodeTranslator::getPort() {
 	return port;
+}
+
+void ClientNamenodeTranslator::logMessage(google::protobuf::Message& req) {
+    std::cout << "Got mkdir request with input " << req.DebugString()<< std::endl;
 }
 
 } //namespace
