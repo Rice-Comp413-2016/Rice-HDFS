@@ -12,8 +12,8 @@
 #include "socket_reads.cc"
 #include "rpcserver.h"
 
-#define ERROR_AND_RETURN(msg) ::std::cerr << msg << ::std::endl; return
-#define ERROR_AND_FALSE(msg) ::std::cerr << msg << ::std::endl; return false
+#define ERROR_AND_RETURN(msg) LOG(ERROR) << msg; return
+#define ERROR_AND_FALSE(msg) LOG(ERROR) << msg; return false
 
 using asio::ip::tcp;
 
