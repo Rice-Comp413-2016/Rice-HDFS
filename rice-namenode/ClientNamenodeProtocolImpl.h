@@ -23,7 +23,7 @@ class ClientNamenodeTranslator {
 		std::string destroy(std::string);
 		std::string create(std::string);
 		std::string getBlockLocations(std::string);
-        std::string getServerDefaults(std::string);
+		std::string getServerDefaults(std::string);
 
 		int getPort();
 		RPCServer getRPCServer();

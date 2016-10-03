@@ -79,7 +79,7 @@ std::string ClientNamenodeTranslator::append(std::string input) {
 std::string ClientNamenodeTranslator::destroy(std::string input) {
 	DeleteRequestProto req;
 	req.ParseFromString(input);
-    logMessage(req);
+	logMessage(req);
 	const std::string& src = req.src();
 	const bool recursive = req.recursive();
 	std::string out;
@@ -92,7 +92,7 @@ std::string ClientNamenodeTranslator::destroy(std::string input) {
 std::string ClientNamenodeTranslator::create(std::string input) {
 	CreateRequestProto req;
 	req.ParseFromString(input);
-    logMessage(req);
+	logMessage(req);
 	const std::string& src = req.src();
 	const hadoop::hdfs::FsPermissionProto& masked = req.masked();
 	std::string out;
@@ -107,7 +107,7 @@ std::string ClientNamenodeTranslator::create(std::string input) {
 std::string ClientNamenodeTranslator::getBlockLocations(std::string input) {
 	GetBlockLocationsRequestProto req;
 	req.ParseFromString(input);
-    logMessage(req);
+	logMessage(req);
 	const std::string& src = req.src();
 	google::protobuf::uint64 offset = req.offset();
 	google::protobuf::uint64 length = req.offset();
@@ -125,7 +125,7 @@ std::string ClientNamenodeTranslator::getServerDefaults(std::string input) {
 	logMessage(req);
 	std::string out;
 	GetServerDefaultsResponseProto res;
-    return Serialize(&out, res);
+	return Serialize(&out, res);
 }
 
 /**
@@ -157,7 +157,7 @@ void ClientNamenodeTranslator::Config() {
 		for (xml_node child : properties.children()) {
 			// the name and value nodes in the xml 
 			xml_node name = child.first_child();
-            xml_node value = name.next_sibling();	
+			xml_node value = name.next_sibling();	
 			const char* name_str = name.first_child().text().get();
 			// TODO best way to do this? there are a lot of cases 	
 			if (strcmp(name_str, "dfs.namenode.fs-limits.min-block-size") == 0) {
@@ -166,7 +166,7 @@ void ClientNamenodeTranslator::Config() {
 				// TODO for example, here, we would add this field to our member FsServerDefault info
 			}
 		}
-        std::cout << "Configured namenode (but not really!)" << std::endl;
+		std::cout << "Configured namenode (but not really!)" << std::endl;
 	}
 
 	// TODO any other configs that we need to read? 	
