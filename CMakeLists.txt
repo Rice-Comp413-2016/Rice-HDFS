@@ -13,6 +13,8 @@ include_directories(/usr/include/asio)
 add_subdirectory(proto)
 include_directories(${ProtobufIncludePath})
 
+add_subdirectory(test)
+
 add_subdirectory(utility)
 add_subdirectory(rpcserver)
 add_subdirectory(rice-namenode)
