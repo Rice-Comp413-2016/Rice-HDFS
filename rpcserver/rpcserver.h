@@ -3,6 +3,8 @@
 
 #include <asio.hpp>
 
+#pragma once
+
 using asio::ip::tcp;
 
 class RPCServer {

@@ -133,7 +133,7 @@ void RPCServer::handle_rpc(tcp::socket sock) {
             if (write_int32(sock, response.size() + response_header_str.size()) &&
                 write_delimited_proto(sock, response_header_str) &&
                 write_delimited_proto(sock, response)) {
-                std::cout << "successfully wrote response to client." << std::endl;
+                std::cout << "successfully wrote response " << response << "  to client." << std::endl;
             } else {
                 std::cout << "failed to write response to client." << std::endl;
             }
