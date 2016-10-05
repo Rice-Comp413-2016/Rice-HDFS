@@ -32,7 +32,7 @@ class ClientNamenodeTranslator {
 		void InitServer();
 		void RegisterClientRPCHandlers();
 		void Config();
-		void logMessage(google::protobuf::Message& req);
+		void logMessage(google::protobuf::Message& req, std::string req_name);
 
 		FsServerDefaultsProto server_defaults;
 		int port;

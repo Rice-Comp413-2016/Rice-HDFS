@@ -37,7 +37,7 @@ ClientNamenodeTranslator::ClientNamenodeTranslator(int port_arg)
 std::string ClientNamenodeTranslator::getFileInfo(std::string input) {
 	GetFileInfoRequestProto req;
 	req.ParseFromString(input);
-	logMessage(req);
+	logMessage(req, "GetFileInfo ");
 	const std::string& src = req.src();
 	// from here, we would ask zoo-keeper something, we should check
 	// the response, and either return the response or return some 
@@ -50,7 +50,7 @@ std::string ClientNamenodeTranslator::getFileInfo(std::string input) {
 std::string ClientNamenodeTranslator::mkdir(std::string input) {
 	MkdirsRequestProto req;
 	req.ParseFromString(input);
-	logMessage(req);
+	logMessage(req, "Mkdir ");
 	const std::string& src = req.src();
 	const hadoop::hdfs::FsPermissionProto& permission_msg = req.masked();
 	bool create_parent = req.createparent();
@@ -64,7 +64,7 @@ std::string ClientNamenodeTranslator::mkdir(std::string input) {
 std::string ClientNamenodeTranslator::append(std::string input) {
 	AppendRequestProto req;
 	req.ParseFromString(input);
-    logMessage(req);
+    logMessage(req, "Append ");
 	const std::string& src = req.src();
 	const std::string& clientName = req.clientname();
 	std::string out;
@@ -79,7 +79,7 @@ std::string ClientNamenodeTranslator::append(std::string input) {
 std::string ClientNamenodeTranslator::destroy(std::string input) {
 	DeleteRequestProto req;
 	req.ParseFromString(input);
-	logMessage(req);
+	logMessage(req, "Delete ");
 	const std::string& src = req.src();
 	const bool recursive = req.recursive();
 	std::string out;
@@ -92,7 +92,7 @@ std::string ClientNamenodeTranslator::destroy(std::string input) {
 std::string ClientNamenodeTranslator::create(std::string input) {
 	CreateRequestProto req;
 	req.ParseFromString(input);
-	logMessage(req);
+	logMessage(req, "Create ");
 	const std::string& src = req.src();
 	const hadoop::hdfs::FsPermissionProto& masked = req.masked();
 	std::string out;
@@ -107,7 +107,7 @@ std::string ClientNamenodeTranslator::create(std::string input) {
 std::string ClientNamenodeTranslator::getBlockLocations(std::string input) {
 	GetBlockLocationsRequestProto req;
 	req.ParseFromString(input);
-	logMessage(req);
+	logMessage(req, "GetBlockLocations ");
 	const std::string& src = req.src();
 	google::protobuf::uint64 offset = req.offset();
 	google::protobuf::uint64 length = req.offset();
@@ -122,7 +122,7 @@ std::string ClientNamenodeTranslator::getBlockLocations(std::string input) {
 std::string ClientNamenodeTranslator::getServerDefaults(std::string input) {
 	GetServerDefaultsRequestProto req;
 	req.ParseFromString(input);
-	logMessage(req);
+	logMessage(req, "GetServerDefaults ");
 	std::string out;
 	GetServerDefaultsResponseProto res;
 	return Serialize(&out, res);
@@ -210,8 +210,8 @@ int ClientNamenodeTranslator::getPort() {
 	return port;
 }
 
-void ClientNamenodeTranslator::logMessage(google::protobuf::Message& req) {
-    std::cout << "Got mkdir request with input " << req.DebugString()<< std::endl;
+void ClientNamenodeTranslator::logMessage(google::protobuf::Message& req, std::string req_name) {
+    std::cout << req_name << req.DebugString()<< std::endl;
 }
 
 } //namespace
