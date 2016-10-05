@@ -183,10 +183,10 @@ void ClientNamenodeTranslator::InitServer() {
  * Register our rpc handlers with the server
  */
 void ClientNamenodeTranslator::RegisterClientRPCHandlers() {
-    using namespace std::placeholders; // for `_1`
+	using namespace std::placeholders; // for `_1`
 
 	// The reason for these binds is because it wants static functions, but we want to give it member functions
-    // http://stackoverflow.com/questions/14189440/c-class-member-callback-simple-examples
+	// http://stackoverflow.com/questions/14189440/c-class-member-callback-simple-examples
 
 	server.register_handler("getFileInfo", std::bind(&ClientNamenodeTranslator::getFileInfo, this, _1));
 	server.register_handler("mkdir", std::bind(&ClientNamenodeTranslator::mkdir, this, _1));
@@ -211,7 +211,7 @@ int ClientNamenodeTranslator::getPort() {
 }
 
 void ClientNamenodeTranslator::logMessage(google::protobuf::Message& req, std::string req_name) {
-    std::cout << req_name << req.DebugString()<< std::endl;
+	std::cout << req_name << req.DebugString()<< std::endl;
 }
 
 } //namespace
