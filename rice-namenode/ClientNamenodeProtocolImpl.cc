@@ -28,7 +28,7 @@ namespace client_namenode_translator {
 // the .proto file implementation's namespace, used for messages
 using namespace hadoop::hdfs;
 
-const int ClientNamenodeTranslator::LEASE_CHECK_TIME = 5;
+const int ClientNamenodeTranslator::LEASE_CHECK_TIME = 60;
 
 // config
 std::map <std::string, std::string> config;
@@ -62,7 +62,7 @@ std::string ClientNamenodeTranslator::getFileInfo(std::string input) {
 	std::string out; 
 	GetFileInfoResponseProto res;
 	
-	return Serialize(&out, res);
+	return Serialize(res);
 }
 
 std::string ClientNamenodeTranslator::mkdir(std::string input) {
@@ -76,7 +76,7 @@ std::string ClientNamenodeTranslator::mkdir(std::string input) {
 	MkdirsResponseProto res;
 	// TODO for now, just say the mkdir command failed
 	res.set_result(false);
-	return Serialize(&out, res);
+	return Serialize(res);
 }
 
 std::string ClientNamenodeTranslator::destroy(std::string input) {
@@ -89,7 +89,7 @@ std::string ClientNamenodeTranslator::destroy(std::string input) {
 	DeleteResponseProto res;
 	// TODO for now, just say the delete command failed
 	res.set_result(false);
-	return Serialize(&out, res);
+	return Serialize(res);
 }
 
 std::string ClientNamenodeTranslator::create(std::string input) {
@@ -110,7 +110,7 @@ std::string ClientNamenodeTranslator::create(std::string input) {
 
 	}
 
-	return Serialize(&out, res);
+	return Serialize(res);
 }
 
 
@@ -126,7 +126,7 @@ std::string ClientNamenodeTranslator::getBlockLocations(std::string input) {
 	// TODO for now, just say the getBlockLocations command failed. Not entirely sure
 	// how to do that, but I think you just don't include a
 	// LocatedBlocksProto
-	return Serialize(&out, res);
+	return Serialize(res);
 }
 
 std::string ClientNamenodeTranslator::getServerDefaults(std::string input) {
@@ -136,6 +136,7 @@ std::string ClientNamenodeTranslator::getServerDefaults(std::string input) {
 	std::string out;
 	GetServerDefaultsResponseProto res;
 	FsServerDefaultsProto def;
+	// read all this config info
 	def.set_blocksize(getDefaultInt("dfs.blocksize"));
 	def.set_bytesperchecksum(getDefaultInt("dfs.bytes-per-checksum"));
 	def.set_writepacketsize(getDefaultInt("dfs.client-write-packet-size"));
@@ -144,20 +145,41 @@ std::string ClientNamenodeTranslator::getServerDefaults(std::string input) {
 	def.set_encryptdatatransfer(getDefaultInt("dfs.encrypt.data.transfer"));
 	// TODO ChecksumTypeProto (optional)	
 	res.set_allocated_serverdefaults(&def);
-	return Serialize(&out, res);
+	return Serialize(res);
 }
 
 std::string ClientNamenodeTranslator::renewLease(std::string input) {
 	RenewLeaseRequestProto req;
 	req.ParseFromString(input);
 	logMessage(req, "RenewLease ");
-	const std::string& clentName = req.clientname();
+	const std::string& clientname = req.clientname();
+	// renew the lease for all files associated with this client 
+	lease_manager.renewLeases(clientname);
 	std::string out;
 	RenewLeaseResponseProto res;
-	return Serialize(&out, res);
+	return Serialize(res);
 }
 
-
+std::string ClientNamenodeTranslator::complete(std::string input) {
+	CompleteRequestProto req;
+	req.ParseFromString(input);
+	logMessage(req, "Complete ");
+	const std::string& src = req.src();
+	const std::string& clientname = req.clientname();
+	// TODO some optional fields need to be read
+	// remove the lease from this file  
+    bool succ = lease_manager.removeLease(clientname, src);         
+    if (!succ) {
+        LOG(ERROR) << "A client tried to close a file which is not theres";
+    }
+	// TODO close the file (communicate with zookeeper) and do any recovery necessary
+	// for now, we failed to close the file
+	bool result = false;		
+	CompleteResponseProto res;
+	res.set_result(result);
+	std::string out;
+	return Serialize(res);
+}
 
 // ----------------------- COMMANDS WE DO NOT SUPPORT ------------------
 
@@ -165,7 +187,7 @@ std::string ClientNamenodeTranslator::rename(std::string input) {
 	RenameResponseProto res;
 	std::string out;
 	res.set_result(false);
-	return Serialize(&out, res);
+	return Serialize(res);
 }
 
 std::string ClientNamenodeTranslator::rename2(std::string input) {
@@ -174,7 +196,7 @@ std::string ClientNamenodeTranslator::rename2(std::string input) {
 	logMessage(req, "Rename2 ");
 	Rename2ResponseProto res;
 	std::string out;
-	return Serialize(&out, res);	
+	return Serialize(res);	
 }
 
 std::string ClientNamenodeTranslator::append(std::string input) {
@@ -183,7 +205,7 @@ std::string ClientNamenodeTranslator::append(std::string input) {
 	logMessage(req, "Append ");
 	AppendResponseProto res;
 	std::string out;
-	return Serialize(&out, res);
+	return Serialize(res);
 }
 
 /**
@@ -192,7 +214,7 @@ std::string ClientNamenodeTranslator::append(std::string input) {
 std::string ClientNamenodeTranslator::setPermission(std::string input) {
 	SetPermissionResponseProto res;
 	std::string out;
-	return Serialize(&out, res);
+	return Serialize(res);
 }
 
 /**
@@ -207,7 +229,7 @@ std::string ClientNamenodeTranslator::recoverLease(std::string input) {
 	std::string out;
 	// just tell the client they could not recover the lease, so they won't try and write
 	res.set_result(false);
-	return Serialize(&out, res);
+	return Serialize(res);
 }
 
 
@@ -217,11 +239,12 @@ std::string ClientNamenodeTranslator::recoverLease(std::string input) {
  * Serialize the message 'res' into out. If the serialization fails, then we must find out to handle it
  * If it succeeds, we simly return the serialized string. 
  */
-std::string ClientNamenodeTranslator::Serialize(std::string* out, google::protobuf::Message& res) {
-	if (!res.SerializeToString(out)) {
+std::string ClientNamenodeTranslator::Serialize(google::protobuf::Message& res) {
+	std::string out;
+	if (!res.SerializeToString(&out)) {
 		// TODO handle error
 	}
-	return *out;
+	return out;
 }
 
 // ------------------------- CONFIG AND INITIALIZATION ------------------------

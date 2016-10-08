@@ -35,13 +35,14 @@ class ClientNamenodeTranslator {
 		std::string append(std::string);
 		std::string setPermission(std::string);
 		std::string recoverLease(std::string);
+		std::string complete(std::string);
 
 		// lease manager interactions
 
 		int getPort();
 		RPCServer getRPCServer();
 	private:
-		std::string Serialize(std::string*, google::protobuf::Message&);
+		std::string Serialize(google::protobuf::Message&);
 		void InitServer();
 		void RegisterClientRPCHandlers();
 		void logMessage(google::protobuf::Message& req, std::string req_name);
