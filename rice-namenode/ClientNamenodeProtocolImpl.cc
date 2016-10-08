@@ -30,6 +30,9 @@ using namespace hadoop::hdfs;
 
 const int ClientNamenodeTranslator::LEASE_CHECK_TIME = 5;
 
+// config
+std::map <std::string, std::string> config;
+
 // TODO - this will probably take some zookeeper object
 ClientNamenodeTranslator::ClientNamenodeTranslator(int port_arg)
 	: port(port_arg), server(port) {
