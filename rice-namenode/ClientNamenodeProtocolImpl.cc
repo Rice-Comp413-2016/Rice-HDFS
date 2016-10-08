@@ -1,5 +1,8 @@
 #include <iostream>
 #include <string>
+#include <thread>
+#include <unistd.h>
+
 #include <google/protobuf/arena.h>
 #include <google/protobuf/arenastring.h>
 #include <google/protobuf/generated_message_util.h>
@@ -10,9 +13,11 @@
 #include <google/protobuf/generated_enum_reflection.h>
 #include <google/protobuf/unknown_field_set.h>
 
+#include <easylogging++.h>
 #include <rpcserver.h>
-#include <pugixml.hpp>
+#include <ConfigReader.h>
 
+#include "Leases.h"
 #include "ClientNamenodeProtocolImpl.h"
 
 /**
@@ -23,16 +28,18 @@ namespace client_namenode_translator {
 // the .proto file implementation's namespace, used for messages
 using namespace hadoop::hdfs;
 
-// static string info
-const char* ClientNamenodeTranslator::HDFS_DEFAULTS_CONFIG = "hdfs-default.xml";
+const int ClientNamenodeTranslator::LEASE_CHECK_TIME = 5;
 
 // TODO - this will probably take some zookeeper object
 ClientNamenodeTranslator::ClientNamenodeTranslator(int port_arg)
 	: port(port_arg), server(port) {
 	InitServer();
-	Config();
-	std::cout << "Created client namenode translator." << std::endl;
+	std::thread(&ClientNamenodeTranslator::leaseCheck, this).detach();
+	LOG(INFO) << "Created client namenode translator.";
 }
+
+
+// ----------------------- RPC HANDLERS ----------------------------
 
 std::string ClientNamenodeTranslator::getFileInfo(std::string input) {
 	GetFileInfoRequestProto req;
@@ -42,8 +49,16 @@ std::string ClientNamenodeTranslator::getFileInfo(std::string input) {
 	// from here, we would ask zoo-keeper something, we should check
 	// the response, and either return the response or return some 
 	// void response...for now we will just return			
+	
+	HdfsFileStatusProto file_status;
+	{
+		// set the file information
+		
+	}
+
 	std::string out; 
 	GetFileInfoResponseProto res;
+	
 	return Serialize(&out, res);
 }
 
@@ -58,21 +73,6 @@ std::string ClientNamenodeTranslator::mkdir(std::string input) {
 	MkdirsResponseProto res;
 	// TODO for now, just say the mkdir command failed
 	res.set_result(false);
-	return Serialize(&out, res);
-}
-
-std::string ClientNamenodeTranslator::append(std::string input) {
-	AppendRequestProto req;
-	req.ParseFromString(input);
-    logMessage(req, "Append ");
-	const std::string& src = req.src();
-	const std::string& clientName = req.clientname();
-	std::string out;
-	AppendResponseProto res;
-	// TODO We don't support this operation, so we need to return some
-	// kind of failure status. I've looked around and I'm not sure 
-	// how to do this since this message only contains an optional
-	// LocatedBlockProto. No LocatedBlockProto might be failure
 	return Serialize(&out, res);
 }
 
@@ -100,6 +100,13 @@ std::string ClientNamenodeTranslator::create(std::string input) {
 	// TODO for now, just say the create command failed. Not entirely sure
 	// how to do that, but I think you just don't include an
 	// HDFSFileStatusProto
+	
+	// TODO - if the create was successful, then add the file to the lease
+	// manager 
+	if (false) {
+
+	}
+
 	return Serialize(&out, res);
 }
 
@@ -125,8 +132,83 @@ std::string ClientNamenodeTranslator::getServerDefaults(std::string input) {
 	logMessage(req, "GetServerDefaults ");
 	std::string out;
 	GetServerDefaultsResponseProto res;
+	FsServerDefaultsProto def;
+	def.set_blocksize(getDefaultInt("dfs.blocksize"));
+	def.set_bytesperchecksum(getDefaultInt("dfs.bytes-per-checksum"));
+	def.set_writepacketsize(getDefaultInt("dfs.client-write-packet-size"));
+	def.set_replication(getDefaultInt("dfs.replication"));
+	def.set_filebuffersize(getDefaultInt("dfs.stream-buffer-size"));
+	def.set_encryptdatatransfer(getDefaultInt("dfs.encrypt.data.transfer"));
+	// TODO ChecksumTypeProto (optional)	
+	res.set_allocated_serverdefaults(&def);
 	return Serialize(&out, res);
 }
+
+std::string ClientNamenodeTranslator::renewLease(std::string input) {
+	RenewLeaseRequestProto req;
+	req.ParseFromString(input);
+	logMessage(req, "RenewLease ");
+	const std::string& clentName = req.clientname();
+	std::string out;
+	RenewLeaseResponseProto res;
+	return Serialize(&out, res);
+}
+
+
+
+// ----------------------- COMMANDS WE DO NOT SUPPORT ------------------
+
+std::string ClientNamenodeTranslator::rename(std::string input) {
+	RenameResponseProto res;
+	std::string out;
+	res.set_result(false);
+	return Serialize(&out, res);
+}
+
+std::string ClientNamenodeTranslator::rename2(std::string input) {
+	Rename2RequestProto req;
+	req.ParseFromString(input);
+	logMessage(req, "Rename2 ");
+	Rename2ResponseProto res;
+	std::string out;
+	return Serialize(&out, res);	
+}
+
+std::string ClientNamenodeTranslator::append(std::string input) {
+	AppendRequestProto req;
+	req.ParseFromString(input);
+	logMessage(req, "Append ");
+	AppendResponseProto res;
+	std::string out;
+	return Serialize(&out, res);
+}
+
+/**
+ * TODO we might support this in the future!
+ */ 
+std::string ClientNamenodeTranslator::setPermission(std::string input) {
+	SetPermissionResponseProto res;
+	std::string out;
+	return Serialize(&out, res);
+}
+
+/**
+ * While we expect clients to renew their lease, we should never allow
+ * a client to "recover" a lease, since we only allow a write-once system
+ */ 
+std::string ClientNamenodeTranslator::recoverLease(std::string input) {
+	RecoverLeaseRequestProto req;
+	req.ParseFromString(input);
+	logMessage(req, "RecoverLease ");
+	RecoverLeaseResponseProto res;
+	std::string out;
+	// just tell the client they could not recover the lease, so they won't try and write
+	res.set_result(false);
+	return Serialize(&out, res);
+}
+
+
+// ----------------------- HANDLER HELPERS --------------------------------
 
 /**
  * Serialize the message 'res' into out. If the serialization fails, then we must find out to handle it
@@ -139,45 +221,24 @@ std::string ClientNamenodeTranslator::Serialize(std::string* out, google::protob
 	return *out;
 }
 
-/**
- * Set the configuration info for the namenode
- */
-void ClientNamenodeTranslator::Config() {
-	// Read the hdfs-defaults xml file 
-	{
-		using namespace pugi;
-		xml_document doc;
-		xml_parse_result result = doc.load_file(HDFS_DEFAULTS_CONFIG);
-		if (!result) {
-		    std::cout << "XML [" << HDFS_DEFAULTS_CONFIG << "] parsed with errors, attr value: [" << doc.child("node").attribute("attr").value() << "]\n";
-    		std::cout << "Error description: " << result.description() << "\n";
-		}
-			
-		xml_node properties = doc.child("configuration");
-		for (xml_node child : properties.children()) {
-			// the name and value nodes in the xml 
-			xml_node name = child.first_child();
-			xml_node value = name.next_sibling();	
-			const char* name_str = name.first_child().text().get();
-			// TODO best way to do this? there are a lot of cases 	
-			if (strcmp(name_str, "dfs.namenode.fs-limits.min-block-size") == 0) {
-				xml_node value = name.next_sibling();
-				int min_block_size = value.first_child().text().as_int();;
-				// TODO for example, here, we would add this field to our member FsServerDefault info
-			}
-		}
-		std::cout << "Configured namenode (but not really!)" << std::endl;
-	}
+// ------------------------- CONFIG AND INITIALIZATION ------------------------
 
-	// TODO any other configs that we need to read? 	
+/**
+ * Get an integer from the hdfs-defaults config 
+ */
+int ClientNamenodeTranslator::getDefaultInt(std::string key) {
+	return config.getInt(key);
 }
 
 /**
  * Initialize the rpc server
  */
 void ClientNamenodeTranslator::InitServer() {
+	LOG(INFO) << "Initializing namenode server...";
 	RegisterClientRPCHandlers();
 }
+
+// ------------------------------------ RPC SERVER INTERACTIONS --------------------------
 
 /**
  * Register our rpc handlers with the server
@@ -186,14 +247,19 @@ void ClientNamenodeTranslator::RegisterClientRPCHandlers() {
 	using namespace std::placeholders; // for `_1`
 
 	// The reason for these binds is because it wants static functions, but we want to give it member functions
-	// http://stackoverflow.com/questions/14189440/c-class-member-callback-simple-examples
-
+    // http://stackoverflow.com/questions/14189440/c-class-member-callback-simple-examples
 	server.register_handler("getFileInfo", std::bind(&ClientNamenodeTranslator::getFileInfo, this, _1));
 	server.register_handler("mkdir", std::bind(&ClientNamenodeTranslator::mkdir, this, _1));
 	server.register_handler("append", std::bind(&ClientNamenodeTranslator::append, this, _1));
 	server.register_handler("destroy", std::bind(&ClientNamenodeTranslator::destroy, this, _1));
 	server.register_handler("create", std::bind(&ClientNamenodeTranslator::create, this, _1));
 	server.register_handler("getBlockLocations", std::bind(&ClientNamenodeTranslator::getBlockLocations, this, _1));
+
+	// register handlers for unsupported calls
+	server.register_handler("rename", std::bind(&ClientNamenodeTranslator::rename, this, _1));
+	server.register_handler("rename2", std::bind(&ClientNamenodeTranslator::rename2, this, _1));
+	server.register_handler("append", std::bind(&ClientNamenodeTranslator::append, this, _1));
+	server.register_handler("setPermission", std::bind(&ClientNamenodeTranslator::setPermission, this, _1));
 }
 
 /**
@@ -210,8 +276,27 @@ int ClientNamenodeTranslator::getPort() {
 	return port;
 }
 
-void ClientNamenodeTranslator::logMessage(google::protobuf::Message& req, std::string req_name) {
-	std::cout << req_name << req.DebugString()<< std::endl;
+// ------------------------------- LEASES ----------------------------
+        
+void ClientNamenodeTranslator::leaseCheck() {
+	LOG(INFO) << "Lease manager check initialized";
+	for (;;) {
+		sleep(LEASE_CHECK_TIME); // only check every 60 seconds
+		std::vector<std::string> expiredFiles = lease_manager.checkLeases(LEASE_CHECK_TIME);
+		for (std::string file : expiredFiles) {
+			// TODO close file on behalf of client, and standardize the last block written
+		}
+	}
 }
 
+
+// ------------------------------- HELPERS -----------------------------
+
+void ClientNamenodeTranslator::logMessage(google::protobuf::Message& req, std::string req_name) {
+	LOG(INFO) << "Got message " << req_name << ": " << req.DebugString();
+}
+
+ClientNamenodeTranslator::~ClientNamenodeTranslator() {
+	// TODO handle being shut down 
+}
 } //namespace
