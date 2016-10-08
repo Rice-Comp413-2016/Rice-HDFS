@@ -168,10 +168,10 @@ std::string ClientNamenodeTranslator::complete(std::string input) {
 	const std::string& clientname = req.clientname();
 	// TODO some optional fields need to be read
 	// remove the lease from this file  
-    bool succ = lease_manager.removeLease(clientname, src);         
-    if (!succ) {
-        LOG(ERROR) << "A client tried to close a file which is not theres";
-    }
+	bool succ = lease_manager.removeLease(clientname, src);         
+	if (!succ) {
+		LOG(ERROR) << "A client tried to close a file which is not theres";
+	}
 	// TODO close the file (communicate with zookeeper) and do any recovery necessary
 	// for now, we failed to close the file
 	bool result = false;		
