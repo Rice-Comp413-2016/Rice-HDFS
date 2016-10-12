@@ -28,6 +28,8 @@ class ClientNamenodeTranslator {
 		std::string getBlockLocations(std::string);
 		std::string getServerDefaults(std::string);
 		std::string renewLease(std::string);
+		std::string complete(std::string);
+		std::string setReplication(std::string);
 
 		// RPC calls which are not supported
 		std::string rename(std::string);
@@ -35,7 +37,7 @@ class ClientNamenodeTranslator {
 		std::string append(std::string);
 		std::string setPermission(std::string);
 		std::string recoverLease(std::string);
-		std::string complete(std::string);
+		std::String concat(std::string);
 
 		// lease manager interactions
 

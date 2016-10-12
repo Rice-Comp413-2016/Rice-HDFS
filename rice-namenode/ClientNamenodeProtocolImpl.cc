@@ -121,7 +121,6 @@ std::string ClientNamenodeTranslator::getBlockLocations(std::string input) {
 	const std::string& src = req.src();
 	google::protobuf::uint64 offset = req.offset();
 	google::protobuf::uint64 length = req.offset();
-	std::string out;
 	GetBlockLocationsResponseProto res;
 	// TODO for now, just say the getBlockLocations command failed. Not entirely sure
 	// how to do that, but I think you just don't include a
@@ -155,7 +154,6 @@ std::string ClientNamenodeTranslator::renewLease(std::string input) {
 	const std::string& clientname = req.clientname();
 	// renew the lease for all files associated with this client 
 	lease_manager.renewLeases(clientname);
-	std::string out;
 	RenewLeaseResponseProto res;
 	return Serialize(res);
 }
@@ -177,15 +175,50 @@ std::string ClientNamenodeTranslator::complete(std::string input) {
 	bool result = false;		
 	CompleteResponseProto res;
 	res.set_result(result);
-	std::string out;
 	return Serialize(res);
+}
+
+/**
+ * The actual block replication is not expected to be performed during  
+ * this method call. The blocks will be populated or removed in the 
+ * background as the result of the routine block maintenance procedures.
+ */
+std::string ClientNamenodeTranslator::setReplication(std::string input) {
+	SetReplicationRequestProto req;
+	req.ParseFromString(input);
+	logMessage(req, "SetReplication ");
+	const std::string& src = req.src();
+	google::protobuf::uint32 replication = req.replication();
+	// TODO verify file exists, set its replication, for now, we fail 
+	SetReplicationResponseProto res;
+	res.set_result(false);
+	return Serialize(res);
+}
+
+/**
+ * The client can give up on a block by calling abandonBlock().
+ * The client can then either obtain a new block, or complete or 
+ * abandon the file. Any partial writes to the block will be discarded.
+ */
+std::string ClientNamenodeTranslator::abandonBlock(std::string input) {
+	AbandonBlockRequestProto req;
+	req.ParseFromString(input);
+	logMessage(req, "AbandonBlock ");
+	const ExtendedBlockProto& blockProto = req.b();
+	const std::string& src = req.src();
+	const std::String& holder = req.src(); // TODO who is the holder??
+	// TODO some optional fields
+	// TODO tell zookeeper to get rid of the last block (should not need to 
+    // (talk to datanode as far as i am aware)
+
+	AbandonBlockResponseProto res; 
+	return Serialize(res);	
 }
 
 // ----------------------- COMMANDS WE DO NOT SUPPORT ------------------
 
 std::string ClientNamenodeTranslator::rename(std::string input) {
 	RenameResponseProto res;
-	std::string out;
 	res.set_result(false);
 	return Serialize(res);
 }
@@ -195,7 +228,6 @@ std::string ClientNamenodeTranslator::rename2(std::string input) {
 	req.ParseFromString(input);
 	logMessage(req, "Rename2 ");
 	Rename2ResponseProto res;
-	std::string out;
 	return Serialize(res);	
 }
 
@@ -204,8 +236,18 @@ std::string ClientNamenodeTranslator::append(std::string input) {
 	req.ParseFromString(input);
 	logMessage(req, "Append ");
 	AppendResponseProto res;
-	std::string out;
 	return Serialize(res);
+}
+
+/**
+ * This is effectively an append, so we do not support it 
+ */
+std::string ClientNamenodeTranslator::concat(std::string input) {
+	ConcatRequestProto req;
+	req.ParseFromString(input);
+	logMessage(req, "Concat ");
+	ConcatResponseProto res;
+	return Serialize(res);	
 }
 
 /**
@@ -213,7 +255,6 @@ std::string ClientNamenodeTranslator::append(std::string input) {
  */ 
 std::string ClientNamenodeTranslator::setPermission(std::string input) {
 	SetPermissionResponseProto res;
-	std::string out;
 	return Serialize(res);
 }
 
@@ -226,7 +267,6 @@ std::string ClientNamenodeTranslator::recoverLease(std::string input) {
 	req.ParseFromString(input);
 	logMessage(req, "RecoverLease ");
 	RecoverLeaseResponseProto res;
-	std::string out;
 	// just tell the client they could not recover the lease, so they won't try and write
 	res.set_result(false);
 	return Serialize(res);
