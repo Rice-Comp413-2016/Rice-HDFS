@@ -711,6 +711,7 @@ namespace zkclient{
 		std::vector<zoo_op_result> results = std::vector<zoo_op_result>();
 		if (!zk->execute_multi(ops, results, error_code)) {
 			LOG(ERROR) << "Failed to rename '"  << src << "' to '" << dst << "'";
+			return false;
 		}
 
 		LOG(INFO) << "Successfully renamed '"  << src << "' to '" << dst << "'";
