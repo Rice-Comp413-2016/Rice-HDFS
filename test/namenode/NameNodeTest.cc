@@ -115,6 +115,10 @@ namespace {
 		ASSERT_EQ("Block uuid", std::string(new_block_data.begin(), new_block_data.end()));
 		LOG(INFO) << "New: " << std::string(new_block_data.begin(), new_block_data.end());
 
+		// Ensure that old_name was delete
+		bool exist;
+		zk->exists("/fileSystem/old_name", exist, error_code);
+		ASSERT_EQ(false, exist);
 	}
 }
 

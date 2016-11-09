@@ -666,8 +666,8 @@ namespace zkclient{
 		auto data = std::vector<std::uint8_t>();
 		auto ops = std::vector<std::shared_ptr<ZooOp>>();
 
-		std::string src_znode = "/fileSystem" + src;
-		std::string dst_znode = "/fileSystem" + dst;
+		std::string src_znode = ZookeeperPath(src);
+		std::string dst_znode = ZookeeperPath(dst);
 
 		// TODO: if one of these fails, should we try to undo? Use a multiop here?
 
