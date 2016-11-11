@@ -188,14 +188,60 @@ namespace zkclient{
 		return 0;
 	}
 
-	void ZkNnClient::delete_node_wrapper(std::string& path, DeleteResponseProto& response) {
-		int error_code;
-		if (!zk->delete_node(ZookeeperPath(path), error_code)) {
-			response.set_result(false);
-			LOG(ERROR) << CLASS_NAME << "Error deleting node at " << path << " because of error = " << error_code;
-			return;
+    bool ZkNnClient::destroy_helper(const std::string& path, std::vector<std::shared_ptr<ZooOp>>& ops){
+        LOG(INFO) << "Destroying " << path;
+		if (!file_exists(path)){
+            LOG(ERROR) << path << " does not exist";
+			return false;
 		}
-		LOG(INFO) << CLASS_NAME << "Successfully deletes znode";
+		int error_code;
+		FileZNode znode_data;
+		read_file_znode(znode_data, path);
+		std::vector<std::string> children;
+		if (!zk->get_children(ZookeeperPath(path), children, error_code)) {
+            LOG(FATAL) << "Failed to get children for " << path;
+			return false;
+		}
+		if (znode_data.filetype == IS_DIR){
+			for (auto& child : children){
+                auto child_path = util::concat_path(path, child);
+				if (!destroy_helper(child_path, ops)){
+					return false;
+				}
+			}
+		}
+		else if (znode_data.filetype == IS_FILE){
+            if (znode_data.under_construction == UNDER_CONSTRUCTION){
+                LOG(ERROR) << path << " is under construction, so it cannot be deleted.";
+                return false;
+            }
+			for (auto& child : children){
+                auto child_path = util::concat_path(path, child);
+                child_path = ZookeeperPath(child_path);
+                ops.push_back(zk->build_delete_op(child_path));
+                std::vector<std::uint8_t> block_vec;
+                std::uint64_t block;
+                if (!zk->get(child_path, block_vec, error_code, sizeof(block))){
+                    return false;
+                }
+
+                std::vector<std::string> datanodes;
+
+                if (!zk->get_children(util::concat_path(BLOCK_LOCATIONS, std::to_string(block)), datanodes, error_code)) {
+                    LOG(ERROR) << CLASS_NAME << "Failed getting datanode locations for block: " << block << " with error: " << error_code;
+                    return false;
+                }
+                // push delete commands onto ops
+                for (auto& dn : datanodes){
+                    auto delete_queue = util::concat_path(DELETE_QUEUES, dn);
+                    auto delete_item = util::concat_path(delete_queue, "block-");
+                    // TODO: saving this until DataNode team creates delete work queues
+                    //ops.push_back(zk->build_create_op(delete_item, block_vec, ZOO_SEQUENCE));
+                }
+			}
+		}
+		ops.push_back(zk->build_delete_op(ZookeeperPath(path)));
+		return true;
 	}
 
 
@@ -210,49 +256,33 @@ namespace zkclient{
 		bool recursive = request.recursive();
 		response.set_result(true);
 		if (!file_exists(path)) {
-			return response.set_result(false);
+            LOG(ERROR) << CLASS_NAME << "Cannot delete " << path << " because it doesn't exist.";
+			response.set_result(false);
+            return;
 		}
 		FileZNode znode_data;
 		read_file_znode(znode_data, path);
 
-		// we have a directory
-		if (recursive) {
-			std::vector<std::string> children;
-			if (!zk->get_children(ZookeeperPath(path), children, error_code)) {
-				LOG(INFO) << CLASS_NAME << "Could not get children for " << path << " because of error = " << error_code;
-				response.set_result(false);
-				// zlock.unlock();
-				return;
-			}
-			// delete the kids
-			for (auto src : children) {
-				DeleteRequestProto request_child;
-				DeleteResponseProto response_child;
-				request_child.set_src(path + "/" + src);
-				request_child.set_recursive(true);
-				destroy(request_child, response_child);
-				if (response_child.result() == false) { // propogate failures updwards
-					response.set_result(false);
-				}
-			}
-		}
-		else if (znode_data.filetype == IS_DIR) {
-			//make sure that the directory is empty if we are not recursively deleting it
-			std::vector<std::string> children;
-			if (!zk->get_children(ZookeeperPath(path), children, error_code) || children.size() > 0) {
-				LOG(INFO) << CLASS_NAME << "Could not get children for " << path << " because of error = " << error_code
-					<< " or the directory has children and the delete wasnt recursive";
-				response.set_result(false);
-				// zlock.unlock();
-				return;
-			}
-		}
-		std::string copy = path;
-		// delete then dude then
-		delete_node_wrapper(copy, response);
-		if (znode_data.filetype == IS_FILE) {
-			// TODO delete his blocks
-		}
+        if (znode_data.filetype == IS_FILE && znode_data.under_construction == UNDER_CONSTRUCTION){
+            LOG(ERROR) << CLASS_NAME << "Cannot delete " << path << " because it is under construction.";
+            response.set_result(false);
+            return;
+        }
+		if (znode_data.filetype == IS_DIR && !recursive){
+            LOG(ERROR) << CLASS_NAME << "Cannot delete " << path << " because it is a directory. Use recursive = true.";
+            response.set_result(false);
+            return;
+        }
+        std::vector<std::shared_ptr<ZooOp>> ops;
+        if (!destroy_helper(path, ops)){
+            response.set_result(false);
+            return;
+        }
+        std::vector<zoo_op_result> results;
+        if (!zk->execute_multi(ops, results, error_code)) {
+            LOG(ERROR) << CLASS_NAME << "Failed to execute multi op to delete " << path;
+            response.set_result(false);
+        }
 	}
 
 	/**
@@ -479,18 +509,10 @@ namespace zkclient{
 	// ---------------------------------------- HELPERS ----------------------------------------
 
 	std::string ZkNnClient::ZookeeperPath(const std::string &hadoopPath){
-		std::string zkpath = NAMESPACE_PATH;
 		if (hadoopPath.size() == 0) {
 			LOG(ERROR) << " this hadoop path is invalid";
 		}
-		if (hadoopPath.at(0) != '/'){
-			zkpath += "/";
-		}
-		zkpath += hadoopPath;
-		if (zkpath.at(zkpath.length() - 1) == '/'){
-			zkpath.at(zkpath.length() - 1) = '\0';
-		}
-		return zkpath;
+		return util::concat_path(NAMESPACE_PATH, hadoopPath);
 	}
 
 	void ZkNnClient::set_file_info(HdfsFileStatusProto* status, const std::string& path, FileZNode& znode_data) {
@@ -601,7 +623,7 @@ namespace zkclient{
 		// Get all of the live datanodes
 		if (zk->get_children(HEALTH, live_data_nodes, error_code)) {
 
-			// LOG(INFO) << CLASS_NAME << "Found live DNs: " << live_data_nodes;
+            LOG(INFO) << CLASS_NAME << "Found " << live_data_nodes.size() << " live datanodes";
 			auto excluded_datanodes = std::vector <std::string>();
 			if (!newBlock) {
 				// Get the list of datanodes which already have a replica
