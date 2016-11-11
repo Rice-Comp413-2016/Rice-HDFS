@@ -710,7 +710,10 @@ namespace zkclient{
 
 		std::vector<zoo_op_result> results = std::vector<zoo_op_result>();
 		if (!zk->execute_multi(ops, results, error_code)) {
-			LOG(ERROR) << "Failed to rename '"  << src << "' to '" << dst << "'";
+			LOG(ERROR) << "Failed multiop when renaming: '" << src << "' to '" << dst << "'";
+			for (int i = 0; i < results.size(); i++) {
+				LOG(ERROR) << "\t MULTIOP #" << i << " ERROR CODE: " << results[i].err;
+			}
 			return false;
 		}
 
