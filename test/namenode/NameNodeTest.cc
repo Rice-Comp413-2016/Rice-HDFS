@@ -166,8 +166,11 @@ namespace {
         hadoop::hdfs::CreateRequestProto create_req = getCreateRequestProto("file2");
         hadoop::hdfs::CreateResponseProto create_resp;
         ASSERT_EQ(1, client->create_file(create_req, create_resp));
-        ASSERT_TRUE(zk->create("/fileSystem/file2/block-0000000000", ZKWrapper::EMPTY_VECTOR, error));
-        ASSERT_TRUE(zk->create("/block_locations/0", ZKWrapper::EMPTY_VECTOR, error));
+		std::uint64_t block_id = 1234;
+		std::vector<std::uint8_t> block_vec(sizeof(std::uint64_t));
+		memcpy(block_vec.data(), &block_id, sizeof(std::uint64_t));
+        ASSERT_TRUE(zk->create("/fileSystem/file2/block-0000000000", block_vec, error));
+        ASSERT_TRUE(zk->create("/block_locations/1234", ZKWrapper::EMPTY_VECTOR, error));
 
         // TODO: create real block_locations for this block once we start doing complete legitimately
 
@@ -187,6 +190,36 @@ namespace {
         ASSERT_TRUE(zk->exists("/fileSystem/file2", exists, error));
         ASSERT_FALSE(exists);
     }
+
+	TEST_F(NamenodeTest, testRenameFile){
+		int error_code;
+		zk->create("/fileSystem/old_name", zk->get_byte_vector("File data"), error_code, false);
+		ASSERT_EQ(0, error_code);
+
+		std::string new_path;
+		zk->create_sequential("/fileSystem/old_name/block-", zk->get_byte_vector("Block uuid"), new_path, false, error_code);
+		ASSERT_EQ(0, error_code);
+		ASSERT_EQ("/fileSystem/old_name/block-0000000000", new_path);
+
+		ASSERT_TRUE(client->rename_file("/old_name", "/new_name"));
+
+		auto new_file_data = std::vector<std::uint8_t>();
+		zk->get("/fileSystem/new_name", new_file_data, error_code);
+		ASSERT_EQ(0, error_code);
+		ASSERT_EQ("File data", std::string(new_file_data.begin(), new_file_data.end()));
+		LOG(INFO) << "New: " << std::string(new_file_data.begin(), new_file_data.end());
+
+		auto new_block_data = std::vector<std::uint8_t>();
+		zk->get("/fileSystem/new_name/block-0000000000", new_block_data, error_code);
+		ASSERT_EQ(0, error_code);
+		ASSERT_EQ("Block uuid", std::string(new_block_data.begin(), new_block_data.end()));
+		LOG(INFO) << "New: " << std::string(new_block_data.begin(), new_block_data.end());
+
+		// Ensure that old_name was delete
+		bool exist;
+		zk->exists("/fileSystem/old_name", exist, error_code);
+		ASSERT_EQ(false, exist);
+	}
 }
 
 int main(int argc, char **argv) {
