@@ -65,6 +65,7 @@ int main(int argc, char **argv) {
 	system("~/zookeeper/bin/zkCli.sh rmr /testing");
 	system("rm -f _RW_TEST_FS expected_testfile1234 actual_testfile* temp*");
 	system("truncate _RW_TEST_FS -s 1000000000");
+	sleep(3);
 
 	system("/home/vagrant/rdfs/build/rice-namenode/namenode &");
 	sleep(5);

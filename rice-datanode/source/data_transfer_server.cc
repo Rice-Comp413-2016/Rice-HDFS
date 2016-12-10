@@ -7,6 +7,7 @@
 #include <easylogging++.h>
 
 #include "data_transfer_server.h"
+#include "native_filesystem.h"
 
 #define ERROR_AND_RETURN(msg) LOG(ERROR) << msg; return
 
@@ -202,19 +203,20 @@ void TransferServer::processReadRequest(tcp::socket& sock) {
 	}
 
 	uint64_t blockID = proto.header().baseheader().block().blockid();
-	std::string block;
-	bool success = fs->getBlock(blockID, block);
+	nativefs::block_info info;
+	bool success = fs->getBlockInfo(blockID, info);
 	if (!success) {
-		LOG(ERROR) << "Failure on fs.getBlock";
+		LOG(ERROR) << "Failure on fs.getBlockInfo";
 	}
 
 	uint64_t offset = proto.offset();
-	uint64_t len = std::min(block.size() - offset, proto.len());
-	if (offset > block.size()) {
+	uint64_t len = std::min(info.len - offset, proto.len());
+	if (offset > info.len) {
 		len = 0;
 	}
 
 	uint64_t seq = 0;
+	std::string payload;
 	while (len > 0) {
 		PacketHeaderProto p_head;
 		p_head.set_offsetinblock(offset);
@@ -225,7 +227,9 @@ void TransferServer::processReadRequest(tcp::socket& sock) {
 		uint64_t payload_size = std::min(len, PACKET_PAYLOAD_BYTES);
 		p_head.set_datalen(payload_size);
 		p_head.set_syncblock(false);
-		if (writePacket(sock, p_head, asio::buffer(&block[offset], payload_size))) {
+
+		fs->getBytes(info.offset + offset, payload_size, payload);
+		if (writePacket(sock, p_head, asio::buffer(payload, payload_size))) {
 			// LOG(INFO) << "Successfully sent packet " << seq << " to client";
 			// LOG(INFO) << "Packet " << seq << " had " << payload_size << " bytes";
 		} else {

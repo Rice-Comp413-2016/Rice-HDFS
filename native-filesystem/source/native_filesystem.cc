@@ -260,21 +260,29 @@ namespace nativefs {
 
 	/**
 	* Read the contents of given block id.
-	*/
-	bool NativeFS::getBlock(uint64_t id, std::string& blk) {
-		// Look in map and get filename
-		block_info info;
-		{
-			std::lock_guard<std::mutex> lock(listMtx);
-			if (!fetchBlock(id, info)) {
-				return false;
+	**/
+	bool NativeFS::getBlockInfo(uint64_t id, block_info& info) {
+		// Look up the block info for this id.
+		std::lock_guard<std::mutex> lock(listMtx);
+		bool found = false;
+		for (size_t i = 0; i < BLOCK_LIST_LEN; i++) {
+			if (blocks[i].blockid == id && !blocks[i].free) {
+				info = blocks[i];
+				found = true;
+				break;
 			}
 		}
-		LOG(INFO) << CLASS_NAME << "Reading block " << id << " length=" << info.len << " at offset=" << info.offset;
-		blk.resize(info.len);
-		disk.seekg(info.offset);
-		disk.read(&blk[0], info.len);
+		if (!found) {
+			return false;
+		}
+		LOG(INFO) << CLASS_NAME << "Got info for block " << id << " length=" << info.len << " at offset=" << info.offset;
 		return true;
+	}
+	
+	void NativeFS::getBytes(uint64_t offset, uint32_t len, std::string& bytes) {
+		bytes.resize(len);
+		disk.seekg(offset);
+		disk.read(&bytes[0], len);
 	}
 
 	/**
@@ -284,8 +292,6 @@ namespace nativefs {
 		std::lock_guard<std::mutex> lock(listMtx);
 		for (size_t i = 0; i < BLOCK_LIST_LEN; i++) {
 			if (blocks[i].blockid == id && !blocks[i].free) {
-				uint64_t offset = blocks[i].offset;
-				uint32_t len = blocks[i].len;
 				resetBlock(blocks[i]);
 				// Coalesce by reconstructing the free lists.
 				constructFreeLists();
